@@ -12,3 +12,8 @@ To implement rpc at client, we should be able to:
 2. get response from neovim server, we can also use socket.
 
 And the interchange format is msgpack, so it is called msgpack-rpc.
+
+## TODO
+
+[] rewrite socket.h using asio.
+[] rewrite logic of api generation.
