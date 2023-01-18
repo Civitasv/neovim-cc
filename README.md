@@ -1,23 +1,14 @@
-# neovim.cpp
+# neovim-cc
 
-Boost::Asio based client library for talking with NeoVim process via it's msgpack-rpc API. (**in progress**)
+We let Neovim run specific method through msgpack-rpc.
 
-Depends on: [msgpack-c](https://github.com/msgpack/msgpack-c), Jinja2, and Boost Libraries.
+Msgpack is like Json, but smaller and faster.
 
-## Usage
+RPC is remote procedure call, it's used to run specific method, which is running on server.
 
-```cpp
-#include "nvim.hpp"
+To implement rpc at client, we should be able to:
 
-int main() {
-    nvim::Nvim nvim;
-    nvim.connect_tcp("localhost", "6666");
-    nvim.nvim_eval("\( 3 + 2 \) \* 4");
-    std::cout << "get_current_line = " << nvim.nvim_get_current_line() << std::endl;
-    nvim.vim_set_current_line("testhogefuga");
-    
-    for(;;) {}
+1. send request(including callid, parameters, etc) to neovim server, we can use socket.
+2. get response from neovim server, we can also use socket.
 
-    return 0;
-}
-```
+And the interchange format is msgpack, so it is called msgpack-rpc.
