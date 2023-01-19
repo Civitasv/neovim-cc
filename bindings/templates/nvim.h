@@ -1,7 +1,7 @@
 // Auto generated
 
-#ifndef NEOVIM_CPP__NVIM_HPP_
-#define NEOVIM_CPP__NVIM_HPP_
+#ifndef NEOVIM_CC__NVIM_H_
+#define NEOVIM_CC__NVIM_H_
 
 #include "nvim_rpc.h"
 #include "type.h"
@@ -9,10 +9,10 @@ namespace nvim {
 
 class Nvim {
 public:
-    void connect_tcp(const std::string &host, 
+    void connect(const std::string &host, 
             const std::string &service, double timeout_sec = 1.0) {
         
-        client_.connect_tcp(host, service, timeout_sec);
+        client_.connect(host, service, timeout_sec);
     }
 
 {% for func in functions%}

@@ -1,81 +1,85 @@
 #include "socket.h"
 
-#include <boost/asio/ip/tcp.hpp>
+#include <boost/asio/error.hpp>
 #include <boost/asio/read.hpp>
 #include <boost/asio/write.hpp>
 #include <boost/lambda/bind.hpp>
 #include <boost/lambda/lambda.hpp>
 
-#define BOOST_VARIANT_USE_RELAXED_GET_BY_DEFAULT
-
+namespace nvim {
+using namespace boost;
 using boost::asio::deadline_timer;
 using boost::asio::ip::tcp;
 using boost::lambda::_1;
 using boost::lambda::bind;
 using boost::lambda::var;
 
-namespace nvim {
+void Socket::Connect(const std::string& host, const std::string& service,
+                     double timeout_sec) {
+  deadline.expires_from_now(posix_time::seconds((int)timeout_sec));
 
-void Socket::connect_tcp(const std::string& host, const std::string& service,
-                         double timeout_sec) {
-  tcp::resolver::query query(host, service);
-  tcp::resolver::iterator iter = tcp::resolver(io_service_).resolve(query);
+  tcp::resolver resolver(io_context);
+  auto endpoints = resolver.resolve(host, service);
 
-  deadline_.expires_from_now(boost::posix_time::seconds((int)timeout_sec));
+  system::error_code ec = asio::error::would_block;
+  asio::async_connect(
+      socket, endpoints,
+      [&ec](system::error_code error_code, tcp::endpoint) { ec = error_code; });
+  do io_context.run_one();
+  while (ec == asio::error::would_block);
 
-  boost::system::error_code ec;
-
-  for (; iter != tcp::resolver::iterator(); ++iter) {
-    socket_.close();
-    ec = boost::asio::error::would_block;
-    socket_.async_connect(iter->endpoint(), var(ec) = _1);
-
-    do io_service_.run_one();
-    while (ec == boost::asio::error::would_block);
-    if (!ec && socket_.is_open()) return;
+  if (!ec) {
+    // std::cout << "Connect successful!" << '\n';
+    return;
   }
-
-  throw boost::system::system_error(ec ? ec
-                                       : boost::asio::error::host_not_found);
+  throw system::system_error(ec ? ec : asio::error::host_not_found);
 }
 
-size_t Socket::read(char* rbuf, size_t capacity, double timeout_sec) {
-  deadline_.expires_from_now(boost::posix_time::seconds((int)timeout_sec));
-  boost::system::error_code ec = boost::asio::error::would_block;
+size_t Socket::Read(char* rbuf, size_t capacity, double timeout_sec) {
+  deadline.expires_from_now(posix_time::seconds((int)timeout_sec));
+
+  system::error_code ec = asio::error::would_block;
   size_t rlen;
-  async_read(socket_, boost::asio::buffer(rbuf, capacity),
-             boost::asio::transfer_at_least(1),
-             [&ec, &rlen](boost::system::error_code e, size_t s) {
-               ec = e;
-               rlen = s;
-             });
 
-  do io_service_.run_one();
-  while (ec == boost::asio::error::would_block);
-  if (ec) throw boost::system::system_error(ec);
+  asio::async_read(socket, asio::buffer(rbuf, capacity),
+                   asio::transfer_at_least(1),
+                   [&ec, &rlen](system::error_code e, size_t s) {
+                     ec = e;
+                     rlen = s;
+                   });
 
-  return rlen;
+  do io_context.run_one();
+  while (ec == asio::error::would_block);
+
+  if (!ec) {
+    // std::cout << "Read successful!" << '\n';
+    return rlen;
+  }
+  throw system::system_error(ec);
 }
 
-void Socket::write(char* sbuf, size_t size, double timeout_sec) {
-  deadline_.expires_from_now(boost::posix_time::seconds((int)timeout_sec));
-  boost::system::error_code ec = boost::asio::error::would_block;
-  boost::asio::async_write(socket_, boost::asio::buffer(sbuf, size),
-                           var(ec) = _1);
+void Socket::Write(const char* sbuf, size_t opacity, double timeout_sec) {
+  deadline.expires_from_now(posix_time::seconds((int)timeout_sec));
 
-  do io_service_.run_one();
-  while (ec == boost::asio::error::would_block);
+  system::error_code ec = asio::error::would_block;
+  asio::async_write(socket, asio::buffer(sbuf, opacity), var(ec) = _1);
 
-  if (ec) throw boost::system::system_error(ec);
+  do io_context.run_one();
+  while (ec == asio::error::would_block);
+
+  if (!ec && socket.is_open()) {
+    // std::cout << "Write successful!" << '\n';
+    return;
+  }
+  throw system::system_error(ec);
 }
 
-void Socket::check_deadline() {
-  if (deadline_.expires_at() <= deadline_timer::traits_type::now()) {
-    socket_.close();
-    deadline_.expires_at(boost::posix_time::pos_infin);
+void Socket::Tick() {
+  if (deadline.expires_at() <= deadline_timer::traits_type::now()) {
+    socket.close();
+    deadline.expires_at(boost::posix_time::pos_infin);
   }
 
-  deadline_.async_wait(bind(&Socket::check_deadline, this));
+  deadline.async_wait(bind(&Socket::Tick, this));
 }
-
 }  // namespace nvim

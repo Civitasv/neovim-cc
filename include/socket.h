@@ -1,42 +1,36 @@
-#ifndef NEOVIM_CPP__SOCKET_HPP_
-#define NEOVIM_CPP__SOCKET_HPP_
-#define BOOST_VARIANT_USE_RELAXED_GET_BY_DEFAULT
+#ifndef NEOVIM_CC__SOCKET_H_
+#define NEOVIM_CC__SOCKET_H_
 
-#include <boost/asio/deadline_timer.hpp>
-#include <boost/asio/generic/stream_protocol.hpp>
-#include <boost/asio/io_service.hpp>
-#include <boost/asio/read_until.hpp>
-#include <boost/asio/streambuf.hpp>
-#include <boost/system/system_error.hpp>
+#include <boost/asio.hpp>
+#include <boost/date_time/posix_time/ptime.hpp>
 #include <cstdlib>
 #include <iostream>
 #include <string>
 
 namespace nvim {
-
-// TODO: Implement asynchronous response handler.
 class Socket {
  public:
-  Socket() : socket_(io_service_), deadline_(io_service_) {
-    deadline_.expires_at(boost::posix_time::pos_infin);
-    check_deadline();
+  Socket() : socket(io_context), deadline(io_context) {
+    deadline.expires_at(boost::posix_time::pos_infin);
+    Tick();
   }
 
-  void connect_tcp(const std::string &host, const std::string &service,
-                   double timeout_sec);
+  void Connect(const std::string &host, const std::string &service,
+               double timeout_sec);
 
-  size_t read(char *rbuf, size_t capacity, double timeout_sec);
-  void write(char *sbuf, size_t size, double timeout_sec);
+  size_t Read(char *rbuf, size_t capacity, double timeout_sec);
+  void Write(const char *sbuf, size_t opacity, double timeout_sec);
+
+  void Close();
+
+private:
+  void Tick();
 
  private:
-  void check_deadline();
-
-  boost::asio::io_service io_service_;
-  boost::asio::generic::stream_protocol::socket socket_;
-  boost::asio::deadline_timer deadline_;
-  boost::asio::streambuf input_buffer_;
+  boost::asio::io_context io_context;
+  boost::asio::ip::tcp::socket socket;
+  boost::asio::deadline_timer deadline;
 };
-
 }  // namespace nvim
 
 #endif  // NEOVIM_CPP__SOCKET_HPP_

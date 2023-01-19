@@ -1,6 +1,5 @@
-#ifndef NEOVIM_CPP__NVIM_RPC_HPP_
-#define NEOVIM_CPP__NVIM_RPC_HPP_
-#define BOOST_VARIANT_USE_RELAXED_GET_BY_DEFAULT
+#ifndef NEOVIM_CC__NVIM_RPC_H_
+#define NEOVIM_CC__NVIM_RPC_H_
 
 #include <iostream>
 #include <sstream>
@@ -14,18 +13,17 @@ namespace nvim {
 namespace detail {
 using Packer = msgpack::packer<msgpack::sbuffer>;
 
-template <class T>
+template <typename T>
 Packer &pack(Packer &pk, const T &t) {
   return pk << t;
 }
 
-template <class T1, class T2, class... T3>
+template <typename T1, typename T2, typename... T3>
 Packer &pack(Packer &pk, const T1 &t1, const T2 &t2, const T3 &...t3) {
   return pack(pack(pk, t1), t2, t3...);
 }
 
 static Packer &pack(Packer &pk) { return pk; }
-
 }  // namespace detail
 
 class NvimRPC {
@@ -34,9 +32,9 @@ class NvimRPC {
  public:
   NvimRPC() : msgid_(0) {}
 
-  void connect_tcp(const std::string &host, const std::string &service,
-                   double timeout_sec) {
-    socket_.connect_tcp(host, service, timeout_sec);
+  void Connect(const std::string &host, const std::string &service,
+               double timeout_sec) {
+    socket_.Connect(host, service, timeout_sec);
   }
 
   template <typename T, typename... U>
@@ -80,37 +78,28 @@ class NvimRPC {
   Variant do_call(const std::string &method, const U &...u) {
     msgpack::sbuffer sbuf;
     detail::Packer pk(&sbuf);
-    pk.pack_array(4) << (uint64_t)REQUEST << msgid_++ << method;
 
+    pk.pack_array(4) << (uint64_t)REQUEST << msgid_++ << method;
     pk.pack_array(sizeof...(u));
+
     detail::pack(pk, u...);
 
     msgpack::object_handle oh = msgpack::unpack(sbuf.data(), sbuf.size());
-
     msgpack::object deserialized = oh.get();
-
     std::cout << "sbuf = " << deserialized << std::endl;
 
-    socket_.write(sbuf.data(), sbuf.size(), 5);
+    socket_.Write(sbuf.data(), sbuf.size(), 1);
 
     msgpack::unpacker unpacker;
     unpacker.reserve_buffer(32 * 1024ul);
 
     size_t rlen =
-        socket_.read(unpacker.buffer(), unpacker.buffer_capacity(), 5);
+        socket_.Read(unpacker.buffer(), unpacker.buffer_capacity(), 10);
+
     msgpack::unpacked result;
     unpacker.buffer_consumed(rlen);
-
-    /*
-    while(unpacker.next(result)) {
-        const msgpack::object &obj = result.get();
-        std::cout << "res = " << obj << std::endl;
-        result.zone().reset();
-    }
-    */
-
-    // TODO: full-state response handler should be implemented
     unpacker.next(result);
+
     const msgpack::object &obj = result.get();
     std::cout << "res = " << obj << std::endl;
     msgpack::type::tuple<int64_t, int64_t, Variant, Variant> dst;
