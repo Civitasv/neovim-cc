@@ -8,6 +8,13 @@ import subprocess
 import re
 
 
+def api_info():
+    nvim_api_info = subprocess.check_output(["nvim", "--api-info"])
+    unpacked_api = msgpack.unpackb(nvim_api_info)
+
+    return unpacked_api
+
+
 class InvalidType(Exception):
     pass
 
@@ -18,29 +25,32 @@ class NativeType:
         self.expect_ref = expect_ref
 
 
-REMAP_T = {
-    "ArrayOf(Integer, 2)": NativeType("std::vector<Integer>", True),
+TYPE_DICT = {
+    "void": NativeType("void"),
+    "Integer": NativeType("int64_t"),
+    "Float": NativeType("double"),
     "Boolean": NativeType("bool"),
     "String": NativeType("std::string", True),
-    "void": NativeType("void"),
+    "Object": NativeType("Variant", True),
+    "Array": NativeType("std::vector<Variant>", True),
+    "Dictionary": NativeType("std::map<std::string, Variant>", True),
     "Window": NativeType("Window"),
     "Buffer": NativeType("Buffer"),
     "Tabpage": NativeType("Tabpage"),
-    "Integer": NativeType("Integer"),
-    "Object": NativeType("Object", True),
+    "ArrayOf(Integer, 2)": NativeType("std::pair<int64_t, int64_t>", True),
 }
+
+ARRAY_OF = re.compile(r"ArrayOf\(\s*(\w+)\s*\)")
 
 
 def convert_type_to_native(nvim_t, enable_ref_op):
-    array_of = r"ArrayOf\(\s*(\w+)\s*\)"
-
-    obj = re.match(array_of, nvim_t)
+    obj = ARRAY_OF.match(nvim_t)
     if obj:
         ret = "std::vector<%s>" % convert_type_to_native(obj.groups()[0], False)
         return "const " + ret + "&" if enable_ref_op else ret
 
-    if nvim_t in REMAP_T:
-        native_t = REMAP_T[nvim_t]
+    if nvim_t in TYPE_DICT:
+        native_t = TYPE_DICT[nvim_t]
         return (
             "const " + native_t.name + "&"
             if enable_ref_op and native_t.expect_ref
@@ -50,19 +60,15 @@ def convert_type_to_native(nvim_t, enable_ref_op):
         print("unknown nvim type name: " + str(nvim_t))
         raise InvalidType()
 
-    # TODO: implement error handler
-    # return nvim_t
-
 
 def main():
     env = Environment(loader=FileSystemLoader("templates", encoding="utf8"))
     tpl = env.get_template("nvim.h")
 
-    api_info = subprocess.check_output(["nvim", "--api-info"])
-    unpacked_api = msgpack.unpackb(api_info)
+    api = api_info()
 
     functions = []
-    for f in unpacked_api["functions"]:
+    for f in api["functions"]:
         d = {}
         d["name"] = f["name"]
 
@@ -76,11 +82,9 @@ def main():
         except InvalidType:
             print("invalid function = " + str(f))
 
-    print("FUNCTIONS", functions)
     api = tpl.render({"functions": functions})
-    # print api.encode('utf-8')
 
-    with open(os.path.join("./include", "nvim.h"), "w") as f:
+    with open(os.path.join("../include", "nvim.h"), "w") as f:
         f.write(api)
 
 

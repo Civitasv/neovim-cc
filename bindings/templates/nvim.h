@@ -1,10 +1,10 @@
 // Auto generated
 
 #ifndef NEOVIM_CPP__NVIM_HPP_
-#define NEOVIM_CPP__NVIm_HPP_
+#define NEOVIM_CPP__NVIM_HPP_
 
 #include "nvim_rpc.h"
-
+#include "type.h"
 namespace nvim {
 
 class Nvim {
@@ -29,7 +29,6 @@ public:
 
 private:
     NvimRPC client_;
-
 };
 
 } //namespace nvim

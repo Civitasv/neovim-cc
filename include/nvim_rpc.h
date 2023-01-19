@@ -8,6 +8,7 @@
 
 #include "msgpack.hpp"
 #include "socket.h"
+#include "type.h"
 
 namespace nvim {
 namespace detail {
@@ -27,12 +28,6 @@ static Packer &pack(Packer &pk) { return pk; }
 
 }  // namespace detail
 
-using Integer = int64_t;
-using Window = Integer;
-using Buffer = Integer;
-using Tabpage = Integer;
-using Object = msgpack::type::variant;
-
 class NvimRPC {
   enum { REQUEST = 0, RESPONSE = 1, NOTIFY = 2 };
 
@@ -46,15 +41,15 @@ class NvimRPC {
 
   template <typename T, typename... U>
   void call(const std::string &method, T &res, const U &...u) {
-    Object v = do_call(method, u...);
+    Variant v = do_call(method, u...);
     std::cout << "T NvimRPC::call" << std::endl;
 
     res = boost::get<T>(v);
   }
 
   template <typename... U>
-  void call(const std::string &method, Integer &res, const U &...u) {
-    Object v = do_call(method, u...);
+  void call(const std::string &method, int64_t &res, const U &...u) {
+    Variant v = do_call(method, u...);
     std::cout << "Integer NvimRPC::call" << std::endl;
 
     // int64_t is only for negative integer.
@@ -68,8 +63,8 @@ class NvimRPC {
   }
 
   template <typename... U>
-  void call(const std::string &method, Object &res, const U &...u) {
-    Object v = do_call(method, u...);
+  void call(const std::string &method, Variant &res, const U &...u) {
+    Variant v = do_call(method, u...);
     std::cout << "Object NvimRPC::call" << std::endl;
     res = v;
   }
@@ -82,7 +77,7 @@ class NvimRPC {
 
  private:
   template <typename... U>
-  Object do_call(const std::string &method, const U &...u) {
+  Variant do_call(const std::string &method, const U &...u) {
     msgpack::sbuffer sbuf;
     detail::Packer pk(&sbuf);
     pk.pack_array(4) << (uint64_t)REQUEST << msgid_++ << method;
@@ -118,7 +113,7 @@ class NvimRPC {
     unpacker.next(result);
     const msgpack::object &obj = result.get();
     std::cout << "res = " << obj << std::endl;
-    msgpack::type::tuple<int64_t, int64_t, Object, Object> dst;
+    msgpack::type::tuple<int64_t, int64_t, Variant, Variant> dst;
     obj.convert(dst);
     return dst.get<3>();
   }
