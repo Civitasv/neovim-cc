@@ -15,6 +15,6 @@ And the interchange format is msgpack, so it is called msgpack-rpc.
 
 ## TODO
 
-[x] rewrite socket.h using asio.
+[✓] rewrite socket.h using asio.
 
 [✓] rewrite logic of api generation.
