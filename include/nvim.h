@@ -7,7 +7,6 @@
 #include "type.h"
 
 namespace nvim {
-
 class Nvim {
  public:
   void Connect(const std::string& host, const std::string& service,
