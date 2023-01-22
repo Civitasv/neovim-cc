@@ -2,34 +2,27 @@
 #define NEOVIM_CC__SOCKET_H_
 
 #include <boost/asio.hpp>
+#include <boost/asio/io_context.hpp>
 #include <boost/date_time/posix_time/ptime.hpp>
 #include <cstdlib>
+#include <functional>
 #include <iostream>
 #include <string>
 
 namespace nvim {
+using AfterWrite = std::function<void(const boost::system::error_code, size_t)>;
+using AfterRead = std::function<void(const boost::system::error_code, size_t)>;
 class Socket {
  public:
-  Socket() : socket(io_context), deadline(io_context) {
-    deadline.expires_at(boost::posix_time::pos_infin);
-    Tick();
-  }
+  Socket(boost::asio::ip::tcp::socket &socket) : socket_(socket) {}
 
-  void Connect(const std::string &host, const std::string &service,
-               double timeout_sec);
-
-  size_t Read(char *rbuf, size_t capacity, double timeout_sec);
-  void Write(const char *sbuf, size_t opacity, double timeout_sec);
+  void Read(char *rbuf, size_t capacity, AfterRead after_read);
+  void Write(const char *sbuf, size_t opacity, AfterWrite after_write);
 
   void Close();
 
-private:
-  void Tick();
-
  private:
-  boost::asio::io_context io_context;
-  boost::asio::ip::tcp::socket socket;
-  boost::asio::deadline_timer deadline;
+  boost::asio::ip::tcp::socket &socket_;
 };
 }  // namespace nvim
 

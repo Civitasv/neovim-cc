@@ -7,7 +7,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 add_subdirectory(src)
 
-option(NEOVIM_CC_BUILD_TEST "if build test" OFF)
+option(NEOVIM_CC_BUILD_TEST "if build test" ON)
 
 if(${NEOVIM_CC_BUILD_TEST})
   add_subdirectory(test)
